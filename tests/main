@@ -1,0 +1,11 @@
+#!/home/ian/.pyenv/shims/python3.14
+import subprocess as sub
+import sys
+import os
+
+a = sub.run(["g++", "../src/main.cpp", "-std=c++23", "-o", "../a.out"])
+if a.returncode != 0:
+    exit(1)
+args = ["../a.out"] + sys.argv[1:]
+sub.run(args)
+os.remove("../a.out")

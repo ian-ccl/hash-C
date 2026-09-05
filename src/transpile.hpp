@@ -451,7 +451,7 @@ static std::vector<Token> lex(
 
                 i = end + 7;
                 continue;
-            } else if (code.compare(i, 3, "@os") == 0) {
+            } else if (code.compare(i, 4, "@os ") == 0) {
                 i+= 3;
                 while (
                     i < code.size() &&
@@ -483,7 +483,7 @@ static std::vector<Token> lex(
                     "end"
                 );
                 continue;
-            } else if (code.compare(i, 6, "@os_else") == 0) {
+            } else if (code.compare(i, 6, "@oselse") == 0) {
                 i+= 6;
                 
                 result.emplace_back(
@@ -568,13 +568,13 @@ static std::vector<Token> lex(
                         "expected digits after integer prefix"
                     );
                 }
-
+                std::string integer_value = code.substr(
+                    begin,
+                    i - begin
+                );
                 result.emplace_back(
                     "integer",
-                    code.substr(
-                        begin,
-                        i - begin
-                    )
+                    base != 8 ? integer_value : "0" + integer_value.substr(2)
                 );
 
                 continue;
@@ -1162,11 +1162,11 @@ static std::string cpp_type(
             0,
             i
         );
-    std::string result;
+    std::string result = " ";
     if (base == "int")
         result = "hc::ptrdiff_t";
     else if (base == "uint")
-        result = "hc::size_t";
+        result = "hc::size_t" ;
     else if (base == "float")
         result = "double";
     else if (base == "ubyte")
@@ -1238,6 +1238,7 @@ static std::string cpp_type(
             "invalid type: "
         ) + type;
     }
+    result += " ";
     return result;
 }
 static std::string escape_cpp_string(
@@ -1614,12 +1615,7 @@ static std::string gen_cpp(
             continue;
         }
         if (kind == "@os") {
-            std::string os = (value == "windows" ? "_Win32" : (value == "linux" ? "__linux__" : (value == "apple" ? "__APPLE__" : (value == "other" ? "!defined(__linux__) && !defined(_Win32) && !defined(__APPLE__)" : (os == "end" ? "end" : (value == "else" ? "else" : "invalid"))))));
-            if (os == "invalid") {
-                throw std::string(
-                    "invalid OS name after @os: "
-                ) + value;
-            }
+            std::string os = (value == "windows" ? "_Win32" : (value == "linux" ? "__linux__" : (value == "apple" ? "__APPLE__" : (value == "other" ? "!defined(__linux__) && !defined(_Win32) && !defined(__APPLE__)" : (value == "end" ? "end" : (value == "else" ? "else" : "invalid"))))));
             if (os == "end") {
                 if (!on_os_block) {
                     throw std::string(
@@ -1631,10 +1627,10 @@ static std::string gen_cpp(
                 ++i;
                 continue;
             }
-            if (os == "end") {
+            if (os == "else") {
                 if (!on_os_block) {
                     throw std::string(
-                        "@osend without matching @os"
+                        "@oselse without matching @os"
                     );
                 }
                 result += "#else\n";
@@ -1643,39 +1639,59 @@ static std::string gen_cpp(
             }
 
             if (os.starts_with("!")) {
-                result += (on_os_block ? "#elif " : "if ") + os + "\n";
+                result += (on_os_block ? "#elif " : "#if ") + os + "\n";
             } else {
-                result += (on_os_block ? "#elif " : "if ");
+                result += (on_os_block ? "#elif " : "#if ");
                 result += " defined(" + os + ")\n";
             }
             on_os_block = true;
+            ++i;
+            continue;
         }
         if (
             kind == "keyword" &&
             value == "typedef"
         ) {
-            result += "typedef";
+            result += "using";
             ++i;
             if (
-                i < parsed.size() &&
-                parsed[i].are_token()
+                i >= parsed.size() ||
+                ! parsed[i].are_token() ||
+                parsed[i].more_info.size() < 2 ||
+                (
+                    parsed[i].more_info[1] != "identifier" &&
+                    parsed[i].more_info[1] != "type"
+                )
+
             ) {
-                ParsedToken& name_token =
-                    parsed[i];
-                if (
-                    name_token.more_info.size() >= 2 &&
-                    name_token.more_info[1] == "identifier"
-                ) {
-                    result += " ";
-                    std::string _typename =
-                        mangle_name(
-                            name_token.more_info[0]
-                        );
-                    result += _typename;
-                    ++i;
-                    continue;
-                }
+                throw std::string(
+                    "typedef needs a name"
+                );
             }
+            ParsedToken& name_token =
+                parsed[i];
+            result += " ";
+            std::string _typename =
+                mangle_name(
+                    name_token.more_info[0]
+                );
+            result += _typename + " = ";
+            ++i;
+            continue;
+
+            if (
+                i >= parsed.size() ||
+                !parsed[i].are_token() ||
+                parsed[i].more_info.size() < 2 ||
+                parsed[i].more_info[1] != "type"
+            ) {
+                throw std::string(
+                    "typedef needs a type"
+                );
+            }
+
+            result += cpp_type(parsed[i].more_info[0]);
+            
             result += " ";
             continue;
         }
@@ -1763,7 +1779,7 @@ static std::string gen_cpp(
             else if (value == "defer") {
                 std::string num = std::to_string(i);
                 result +=
-                    "hc::Defer _I5defer" + std::to_string(num.size()+1) + "_" + num + " = hc::Defer{[]{";
+                    "hc::Defer _I5defer" + std::to_string(num.size()+1) + "_" + num + " = hc::Defer{[&]{";
                 size_t begin = i +1, end = begin;
                 while (end < parsed.size()) {
                     if (parsed[end].are_token() &&

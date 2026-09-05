@@ -34,6 +34,8 @@ inline std::unordered_set<std::string> keywords = {
     "nullptr",
     "nullslice",
     "cstruct",
+    "defer",
+    "const",
     "return"
 };
 inline std::unordered_set<std::string> types = {
@@ -47,6 +49,7 @@ inline std::unordered_set<std::string> types = {
     "fmax",
     "imax",
     "umax",
+    "void",
     "_AutoType"
 };
 static std::unique_ptr<tree::node> clone_node(
@@ -253,6 +256,7 @@ static std::vector<Token> lex(
                 value += current;
                 ++i;
             }
+            
             if (!closed) {
                 throw std::string(
                     "unterminated string"
@@ -421,22 +425,172 @@ static std::vector<Token> lex(
             );
             continue;
         }
-        if (
-            std::isdigit(
+        if (c == '@') {
+            if (code.compare(i, 4, "@c++") == 0) {
+                i += 4;
+
+                size_t begin = i;
+                size_t end = code.find("@c++end", i);
+
+                if (end == std::string::npos) {
+                    throw std::string(
+                        "unterminated @c++ block"
+                    );
+                }
+
+                std::string value =
+                    code.substr(
+                        begin,
+                        end - begin
+                    );
+
+                result.emplace_back(
+                    "c++",
+                    std::move(value)
+                );
+
+                i = end + 7;
+                continue;
+            } else if (code.compare(i, 3, "@os") == 0) {
+                i+= 3;
+                while (
+                    i < code.size() &&
+                    std::isspace(
+                        static_cast<unsigned char>(code[i])
+                    ) && code[i] != '\n'
+                ) {
+                    ++i;
+                }
+                std::string os = read_qualified_identifier(
+                    code,
+                    i
+                );
+                if (os != "windows" && os != "linux" && os != "other" && os != "apple") {
+                    throw std::string(
+                        "invalid OS name after @os: "
+                    ) + os;
+                }
+                result.emplace_back(
+                    "@os",
+                    os
+                );
+                continue;
+            } else if (code.compare(i, 6, "@osend") == 0) {
+                i+= 6;
+                
+                result.emplace_back(
+                    "@os",
+                    "end"
+                );
+                continue;
+            } else if (code.compare(i, 6, "@os_else") == 0) {
+                i+= 6;
+                
+                result.emplace_back(
+                    "@os",
+                    "else"
+                );
+                continue;
+            }
+
+            while (
+                i < code.size() &&
+                code[i] != '\n'
+            ) {
+                ++i;
+            }
+
+            continue;
+        }
+        if (std::isdigit(
                 static_cast<unsigned char>(c)
             )
         ) {
-            size_t begin = i++;
+            size_t begin = i;
+
+            if (
+                c == '0' &&
+                i + 1 < code.size() &&
+                (
+                    code[i + 1] == 'x' ||
+                    code[i + 1] == 'X' ||
+                    code[i + 1] == 'b' ||
+                    code[i + 1] == 'B' ||
+                    code[i + 1] == 'o' ||
+                    code[i + 1] == 'O'
+                )
+            ) {
+                char base_char = code[i + 1];
+
+                int base;
+                if (base_char == 'x' || base_char == 'X')
+                    base = 16;
+                else if (base_char == 'b' || base_char == 'B')
+                    base = 2;
+                else
+                    base = 8;
+
+                i += 2;
+
+                size_t digits_begin = i;
+
+                while (i < code.size()) {
+                    char digit = code[i];
+                    bool valid = false;
+
+                    if (base == 16) {
+                        valid =
+                            std::isdigit(
+                                static_cast<unsigned char>(digit)
+                            ) ||
+                            (digit >= 'a' && digit <= 'f') ||
+                            (digit >= 'A' && digit <= 'F');
+                    }
+                    else if (base == 8) {
+                        valid =
+                            digit >= '0' &&
+                            digit <= '7';
+                    }
+                    else {
+                        valid =
+                            digit == '0' ||
+                            digit == '1';
+                    }
+
+                    if (!valid)
+                        break;
+
+                    ++i;
+                }
+
+                if (digits_begin == i) {
+                    throw std::string(
+                        "expected digits after integer prefix"
+                    );
+                }
+
+                result.emplace_back(
+                    "integer",
+                    code.substr(
+                        begin,
+                        i - begin
+                    )
+                );
+
+                continue;
+            }
+
+            ++i;
+
             while (
                 i < code.size() &&
                 std::isdigit(
-                    static_cast<unsigned char>(
-                        code[i]
-                    )
+                    static_cast<unsigned char>(code[i])
                 )
             ) {
                 ++i;
             }
+
             result.emplace_back(
                 "integer",
                 code.substr(
@@ -444,6 +598,7 @@ static std::vector<Token> lex(
                     i - begin
                 )
             );
+
             continue;
         }
         if (i + 1 < code.size()) {
@@ -589,11 +744,15 @@ static std::vector<ParsedToken> parse(
                 return 2;
             if (op == "&&")
                 return 3;
+            if (op == "|")
+                return 4;
+            if (op == "&")
+                return 5;
             if (
                 op == "==" ||
                 op == "!="
             ) {
-                return 4;
+                return 6;
             }
             if (
                 op == "<" ||
@@ -601,20 +760,20 @@ static std::vector<ParsedToken> parse(
                 op == "<=" ||
                 op == ">="
             ) {
-                return 5;
+                return 7;
             }
             if (
                 op == "+" ||
                 op == "-"
             ) {
-                return 6;
+                return 8;
             }
             if (
                 op == "*" ||
                 op == "/" ||
                 op == "%"
             ) {
-                return 7;
+                return 9;
             }
             return -1;
         };
@@ -1329,12 +1488,14 @@ static std::string get_function_name(
 }
 
 static std::string gen_cpp(
-    std::vector<ParsedToken> parsed
+    std::vector<ParsedToken> parsed,
+    bool imports = true
 )
 {
     std::string result;
     size_t i = 0;
     bool on_main = false;
+    bool on_os_block = false;
     while (i < parsed.size()) {
         ParsedToken& token =
             parsed[i];
@@ -1452,6 +1613,43 @@ static std::string gen_cpp(
             
             continue;
         }
+        if (kind == "@os") {
+            std::string os = (value == "windows" ? "_Win32" : (value == "linux" ? "__linux__" : (value == "apple" ? "__APPLE__" : (value == "other" ? "!defined(__linux__) && !defined(_Win32) && !defined(__APPLE__)" : (os == "end" ? "end" : (value == "else" ? "else" : "invalid"))))));
+            if (os == "invalid") {
+                throw std::string(
+                    "invalid OS name after @os: "
+                ) + value;
+            }
+            if (os == "end") {
+                if (!on_os_block) {
+                    throw std::string(
+                        "@osend without matching @os"
+                    );
+                }
+                result += "#endif\n";
+                on_os_block = false;
+                ++i;
+                continue;
+            }
+            if (os == "end") {
+                if (!on_os_block) {
+                    throw std::string(
+                        "@osend without matching @os"
+                    );
+                }
+                result += "#else\n";
+                ++i;
+                continue;
+            }
+
+            if (os.starts_with("!")) {
+                result += (on_os_block ? "#elif " : "if ") + os + "\n";
+            } else {
+                result += (on_os_block ? "#elif " : "if ");
+                result += " defined(" + os + ")\n";
+            }
+            on_os_block = true;
+        }
         if (
             kind == "keyword" &&
             value == "typedef"
@@ -1481,12 +1679,18 @@ static std::string gen_cpp(
             result += " ";
             continue;
         }
+        if (kind == "c++") {
+            result += value;
+            ++i;
+            continue;
+        }
         if (kind == "type") {
             result +=
                 cpp_type(value) + " ";
             ++i;
             continue;
         }
+        
         if (kind == "string") {
             result += '"';
             for (char c : value) {
@@ -1556,6 +1760,65 @@ static std::string gen_cpp(
                 result += mangle_name(parsed[i].gets());
                 result += " : hc::NonCopyable ";
             }
+            else if (value == "defer") {
+                std::string num = std::to_string(i);
+                result +=
+                    "hc::Defer _I5defer" + std::to_string(num.size()+1) + "_" + num + " = hc::Defer{[]{";
+                size_t begin = i +1, end = begin;
+                while (end < parsed.size()) {
+                    if (parsed[end].are_token() &&
+                        parsed[end].more_info[0] == ";")
+                        break;
+
+                    ++end;
+                }
+                std::vector<ParsedToken> body;
+                for (size_t j = begin; j < end; ++j) {
+                    if (parsed[j].are_token() && parsed[j].more_info[0] == "defer") {
+                        throw std::string(
+                            "nested defer is not allowed"
+                        );
+                    }
+                    if (parsed[j].are_token() && parsed[j].more_info[0] == "return") {
+                        throw std::string(
+                            "return statement is not allowed inside defer"
+                        );
+                    }
+                    if (parsed[j].are_token() && parsed[j].more_info[0] == "fn") {
+                        throw std::string(
+                            "function definition is not allowed inside defer"
+                        );
+                    }
+                    if (parsed[j].are_token() && parsed[j].more_info[0] == "struct") {
+                        throw std::string(
+                            "struct definition is not allowed inside defer"
+                        );
+                    }
+                    if (parsed[j].are_token() && parsed[j].more_info[0] == "typedef") {
+                        throw std::string(
+                            "typedef is not allowed inside defer"
+                        );
+                    }
+                    if (parsed[j].are_token() && parsed[j].more_info[0] == "cstruct") {
+                        throw std::string(
+                            "cstruct definition is not allowed inside defer"
+                        );
+                    }
+
+                    if (parsed[j].are_token()) {
+                        body.emplace_back(parsed[j].gets(), parsed[j].more_info);
+                    }
+
+                    if (parsed[j].are_tree()) {
+                        body.emplace_back(clone_tree(parsed[j].gett()));
+                    }
+                   
+                }
+                body.emplace_back(";", std::vector<std::string>{";", "punctuation"});
+                result += gen_cpp(std::move(body), false);
+                result += "}};";
+                i = end;
+            }
             else {
                 result +=
                     value + " ";
@@ -1572,7 +1835,9 @@ static std::string gen_cpp(
         result += value;
         ++i;
     }
-    result = "#include \"std.tmp.hpp\"\n" + result;
+    if (imports) {
+        result = "#include \"std.tmp.hpp\"\n" + result;
+    }
     if (on_main) {
         result+= R"(
             int main(int argc, char** argv) {
@@ -1619,6 +1884,16 @@ inline void transpile()
         try {
             std::vector<Token> tokens =
                 lex(module);
+
+            for (const todo& item : todo_list) {
+                if (item.id == todo_id::TYPE_ID) {
+                    if (! item()) {
+                        throw std::string(
+                            "expected type definition for: "
+                        ) + item.args[1] + ", got: " + item.args[0];
+                    }
+                }
+            }
             std::vector<ParsedToken> parsed =
                 parse(
                     std::move(tokens)

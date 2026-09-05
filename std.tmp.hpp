@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstdarg>
 #include <string>
+#include <functional>
 namespace hc {
     using std::size_t, std::ptrdiff_t, std::intmax_t, std::uintmax_t;
     template <typename T>
@@ -67,7 +68,9 @@ namespace hc {
             inline bool operator!=(const __Byte& other) const {
                 return this->val != other.val;
             }
+            #if __cplusplus >= 202002L
             inline auto operator<=>(const __Byte& other) const = default;
+            #endif
             inline bool operator&&(const __Byte& other) const {
                 return this->val && other.val;
             }
@@ -89,7 +92,12 @@ namespace hc {
     struct NonCopyable {
         NonCopyable(const NonCopyable&) = delete;
     };
-
+    
+    struct Defer {
+        std::function<void()> func;
+        inline Defer(std::function<void()> f) : func(f) {}
+        inline ~Defer() { func(); }
+    };
 }
 
 extern "C" void _I3std6printf(const char* fmt, ...);

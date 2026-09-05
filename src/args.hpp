@@ -33,6 +33,15 @@ ArgsInfo argparse(args_t args)
             info.ccpp =
                 args[++i];
         }
+        else if (strcmp(arg, "-cpp-flag") == 0) {
+            if (i + 1 >= args.len)
+                throw std::string(
+                    "-cpp-flag requires a flag"
+                );
+            info.cpp_flags.push_back(
+                args[++i]
+            );
+        }
         else {
             if (have_main_file)
                 throw std::string(

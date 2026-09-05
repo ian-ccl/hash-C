@@ -22,7 +22,10 @@ void compile() {
         cmd += " -c";
     }
 
-    cmd += " -std=c++23";
+    for (const std::string& flag : info.cpp_flags) {
+        cmd += " " + flag;
+    }
+    cmd += " -o " + info.out.name;
 
     ProcessResult out = shell(cmd);
 

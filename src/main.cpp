@@ -160,17 +160,20 @@ int main(
         argc
     };
     try {
-        //read
+        //read & file mergin procesor
         read_main_file();
         //preproc
-        if constexpr (DEBUG) std::cout << "after preproces\n";
+        
         for (auto& [name, mod] : program.Modules) {
             get_template_defines(mod.code);
+        }
+        for (auto& [name, mod] : program.Modules) {
             replace_template_implements(mod.code);
             if constexpr (DEBUG) {
                 std::cout << name << '\n' << mod.code << '\n';
             }
         }
+        if constexpr (DEBUG) std::cout << "after preproces\n";
         //compile
         transpile();
         compile();
@@ -200,6 +203,22 @@ int main(
         std::cerr
             << "\033[1;31m[ERROR] "
             << msg
+            << " [ERROR]\033[0m\n";
+        return 1;
+    }
+    catch (
+        const char* const &msg
+    ) {
+        std::cerr
+            << "\033[1;31m[ERROR] "
+            << msg
+            << " [ERROR]\033[0m\n";
+        return 1;
+    }
+    catch (...) {
+        std::cerr
+            << "\033[1;31m[ERROR] "
+            << "unknown error"
             << " [ERROR]\033[0m\n";
         return 1;
     }

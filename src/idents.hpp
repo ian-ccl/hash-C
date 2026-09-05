@@ -2,6 +2,7 @@
 #define IDENTS_HPP
 #include <string>
 #include <cctype>
+#include <iostream>
 static bool is_ident_start(
     char c
 )
@@ -28,8 +29,8 @@ static std::string read_qualified_identifier(
         !is_ident_start(code[i])
     ) {
         throw std::string(
-            "expected identifier"
-        );
+            "expected identifier " 
+        ) + (i >= code.size() ? "invalid position" : (std::string("got: ") + code[i]));
     }
     std::string result;
     size_t begin = i;

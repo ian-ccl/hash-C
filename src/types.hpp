@@ -13,6 +13,7 @@
 #include <variant>
 #include <cstdio>
 #include <fstream>
+#include <functional>
 class tree {
     public:
         struct node {
@@ -102,13 +103,15 @@ struct ArgsInfo {
     ArgsInfo(
         std::string main = "main.hc",
         Out output = Out(),
-        std::string cpp_compiler = "g++"
+        std::string cpp_compiler = "g++",
+        std::vector<std::string> cpp_flags = {}
     )
-        : main_file(main), out(output), ccpp(cpp_compiler) {}
+        : main_file(main), out(output), ccpp(cpp_compiler), cpp_flags(cpp_flags) {}
 
     std::string main_file;
     Out out;
     std::string ccpp = "g++";
+    std::vector<std::string> cpp_flags;
 };
 
 
@@ -205,7 +208,7 @@ struct ParsedToken {
         std::string value,
         std::vector<std::string> more_information = {}
     )
-        : val(std::move(value)),
+        : val(value),
           more_info(std::move(more_information)) {}
 
     ParsedToken(
@@ -289,10 +292,28 @@ static inline ProcessResult shell(std::string cmd) {
 
 
 struct TemplateInfo {
-    std::vector<std::string> args;
+    size_t args;
     std::string name;
     std::string code;
+    bool is_strsafe : 1 {false};
+    bool is_type_only : 1 {false};
 };
 
 using Templates = std::unordered_map<std::string, TemplateInfo>;
+
+enum class todo_id {
+    OTHER_ID = 0,
+    TYPE_ID = 1,
+};
+
+struct todo {
+    std::vector<std::string> args = {};
+    std::function<bool(const std::vector<std::string>&)> func;
+    todo_id id = todo_id::OTHER_ID;
+
+    bool operator()() const {
+        return func(args);
+    }
+};
+
 #endif

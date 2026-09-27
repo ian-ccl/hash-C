@@ -1,3 +1,7 @@
+#ifndef STD_HPP
+#define STD_HPP
+
+constexpr const char* stdhpp = R"(
 #ifndef STD_______hc
 #define STD_______hc
 #include <cinttypes>
@@ -169,4 +173,7 @@ extern "C" hc::ptr<void> _I3std5alloc(size_t size);
 extern "C" hc::slice<void> _I3std5alloc4list(size_t elemsize, size_t elems);
 extern "C" void _I3std4free(hc::ptr<void> p);
 extern "C" void _I3std4free4list(hc::slice<void> p);
+#endif
+)";
+
 #endif

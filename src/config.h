@@ -1,9 +1,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H
-#define DEBUG true
+#define DEBUG 1
 #ifdef _Win32
-#define OnWIn true
+#define OnWIn 1
 #else
-#define OnWin false
+#define OnWin 1
 #endif
 #endif

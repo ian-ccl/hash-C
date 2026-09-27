@@ -1,59 +1,48 @@
 #ifndef COMPILE_HPP
 #define COMPILE_HPP
-
+#include "../libs/transcode/transcode.hpp"
+#include "types.hpp"
+#include "transpile.hpp"
+#include <memory>
 #include "config.h"
-#include "externs.hpp"
-
-#include <vector>
-#include <string> 
-#include <cstdlib>
+#if DEBUG == 1
 #include <iostream>
+#endif
+namespace c{
+    // ============================================================
+    // COMPILER
+    // ============================================================
 
-void compile() {
+    tc::Opt<std::string> compile(
+        const tc::Source& source,
+        std::unordered_set<tc::String>& types
+    ) {
+        Lexer lexer(source);
 
-    if (info.out.as == ArgsInfo::Out::As::Cpp) return;
+        tc::Opt<std::vector<Token>> tokens =
+            lexer.lex();
 
-    std::string cmd = info.ccpp + " std.tmp.cpp";
-    for (size_t i = 0; i < tmp_files.size(); i++) {
-        cmd += " " + tmp_files[i];
-    }
-
-    if (info.out.as == ArgsInfo::Out::As::Object) {
-        cmd += " -c";
-    }
-
-    for (const std::string& flag : info.cpp_flags) {
-        cmd += " " + flag;
-    }
-    cmd += " -o " + info.out.name;
-
-    ProcessResult out = shell(cmd);
-
-    if (out.exit_code != 0) {
-        std::cerr << "\033[33m##########\nc++ errors\n##########\n" << out.stderr << "\n##########\n\033[0m";
-    }
-
-    for (size_t i = 0; i < tmp_files.size(); i++) {
-        int code = std::remove(tmp_files[i].c_str());
-
-        if (code != 0) {
-            std::cerr << "error removing files\n";
+        if (!tokens) {
+            if constexpr (DEBUG)
+                std::cerr << "lex error\n";
+            return tc::NullOpt;
         }
-    }
 
-    {
-        int code = std::remove("std.tmp.cpp");
+        Parser parser(*tokens, types);
 
-        if (code != 0) {
-            std::cerr << "error removing files\n";
+        tc::Opt<
+            std::vector<std::unique_ptr<Decl>>
+        > ast = parser.parse();
+
+        if (!ast) {
+            if constexpr (DEBUG)
+                std::cerr << "parse error\n";
+            return tc::NullOpt;
         }
-    }
-    {
-        int code = std::remove("std.tmp.hpp");
 
-        if (code != 0) {
-            std::cerr << "error removing files\n";
-        }
+        Codegen codegen;
+
+        return codegen.generate(*ast);
     }
 }
 

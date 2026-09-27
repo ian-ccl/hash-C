@@ -3,9 +3,26 @@ import subprocess as sub
 import sys
 import os
 
-a = sub.run(["g++", "../src/main.cpp", "-std=c++23", "-o", "../a.out"])
-if a.returncode != 0:
+if sys.argv[1] == "--union":
+    fname = sys.argv[2]
+    s = ""
+    for file in os.listdir():
+        if not file.endswith(".hc"):
+            continue
+        s += f"{file}\n##########\n"
+        with open(file, 'r') as f:
+            s += f.read().strip() + "\n##########\n"
+    with open(fname, 'w') as f:
+        f.write(s)
+    exit(0)
+        
+
+
+proc = sub.run(["g++", "../src/main.cpp", "../libs/transcode/transcode.cpp", "-std=c++20", "-o", "../hcc"])
+if proc.returncode != 0:
     exit(1)
-args = ["../a.out"] + sys.argv[1:]
-sub.run(args)
-os.remove("../a.out")
+args = ["../hcc"] + sys.argv[1:]
+proc = sub.run(args)
+os.remove("../hcc")
+if proc.returncode != 0:
+    exit(1)

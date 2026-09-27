@@ -1,3 +1,7 @@
+#ifndef STDDEF_HPP
+#define STDDEF_HPP
+
+constexpr const char* stdcpp = R"(
 #include "std.tmp.hpp"
 
 static void print_i(ptrdiff_t x) {
@@ -189,3 +193,6 @@ extern "C" void _I3std4free(hc::ptr<void> p) {
 extern "C" void _I3std4free4list(hc::slice<void> p) {
     free(p.ptr);
 }
+)";
+
+#endif

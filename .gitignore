@@ -1,0 +1,9 @@
+**/*
+!.gitignore
+!src
+!src/*
+!readme.md
+!std.tmp.?pp
+!libs
+!libs/*
+!libs/**/*

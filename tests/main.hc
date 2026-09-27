@@ -2,7 +2,6 @@
 @import structs
 @import templates
 @import defer
-@import os
 @import cpp
 @import types
 @import lits
@@ -17,7 +16,6 @@ fn main(char[][] args) void {
 
     std:printf("defer: %i\n", _defer:test());
 
-    std:printf("os: %i\n", os:test());
 
     std:printf("cpp: %i\n", cpp:test());
 

@@ -7,17 +7,17 @@ module api {
     fn structs:test() int;
 }
 
-cstruct Point {
+cstruct Point { //copyable
     int x;
     int y;
 };
 
-struct Secret {
+struct Secret { //non copyable
     int value;
 };
 
 fn structs:test() int {
-    Point a = {1, 2};
+    Point a = make Point{1, 2};
     Point b = a;
 
     return b.x + b.y;

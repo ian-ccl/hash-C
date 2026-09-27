@@ -50,15 +50,8 @@ Structs cannot contain methods.
 Deferred statements are executed in reverse order.
 
 ```#C
-defer foo();
-defer bar();
-```
-
-When the current scope ends:
-
-```text
-bar()
-foo()
+defer {...};
+defer {...};
 ```
 
 `defer` is intended as a simple scope-exit mechanism rather than a complete exception/error-handling system.
@@ -244,47 +237,6 @@ fn add(int a, int b) int {
 ```
 
 The language also supports `extern` declarations.
-
----
-
-## `@os`
-
-`@os` provides conditional compilation based on the target operating system.
-
-```#C
-@os windows
-    ...
-@os linux
-    ...
-@os apple
-    ...
-@oselse
-    ...
-@osend
-```
-
-Valid operating-system identifiers are:
-
-* `windows`
-* `linux`
-* `apple`
-* `other`
-
-`other` means an operating system that is neither Windows, Linux, nor Apple.
-
-Multiple `@os` branches can be used. An `@oselse` branch is optional.
-
-Example:
-
-```#C
-@os windows
-    ...
-@os linux
-    ...
-@oselse
-    ...
-@osend
-```
 
 ---
 
